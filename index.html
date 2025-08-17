@@ -1,55 +1,42 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Koalitionsrechner – Proportionale Sitzverteilung</title>
-<style>
-:root { --bg:#0b0f14; --card:#121823; --ink:#e8eef7; --muted:#a6b0bf; --ok:#37d07a; --bad:#ff6a6a; --radius:14px; }
-  *{box-sizing:border-box}
- 
-  body{margin:0; padding:32px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial; background:radial-gradient(1200px 800px at 80% -20%, #1b2b45 0%, #0b0f14 55%); color:var(--ink)}
-  h1{margin:0 0 8px; font-size:clamp(20px,2.6vw,32px)} p.sub{margin:0 0 24px; color:var(--muted)}
-  .wrap{display:grid; gap:16px; grid-template-columns:380px 1fr} @media(max-width:980px){.wrap{grid-template-columns:1fr}}
-  .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01)); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); padding:16px}
-  .row{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap} .row>*{flex:1}
-  input,select,button{border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0f1420; color:var(--ink); padding:10px 12px}
-  input[type="color"]{padding:0; height:38px; width:100%} button{cursor:pointer; font-weight:600} button.secondary{background:#0f1420}
-  .party-row{display:grid; grid-template-columns:26px 1.3fr .9fr .7fr 1fr 26px; gap:8px; align-items:center; margin:8px 0}
-  .party-row .handle{opacity:.6; text-align:center; font-size:12px} .party-row .del{opacity:.7; cursor:pointer; text-align:center}
-  .legend{display:flex; flex-wrap:wrap; gap:8px} .legend .item{display:flex; align-items:center; gap:8px; font-size:13px; background:#0f1420; border:1px solid rgba(255,255,255,.08); padding:6px 10px; border-radius:999px}
-  .sw{width:14px; height:14px; border-radius:4px; display:inline-block; border:1px solid rgba(255,255,255,.3)}
-  .pill{display:inline-flex; align-items:center; gap:8px; font-size:13px; padding:6px 10px; border-radius:999px; background:#0f1420; border:1px solid rgba(255,255,255,.08)}
-  .checklist{display:flex; flex-wrap:wrap; gap:10px}
-  .checklist label{display:flex; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.08); padding:8px 10px; border-radius:999px; background:#0f1420}
-  .ok{color:var(--ok)} .bad{color:var(--bad)}
-</style>
-</head>
-<body>
-  <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
-  <p class="sub">Altes Layout, dicker Halbkreis, nichts abgeschnitten.</p>
+function drawHalfRing(svg, data, totalSeats, methodKey){
+  svg.setAttribute("viewBox", `0 0 900 460`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
+  const w = 900, h = 460, cx = w/2, cy = h*0.82;   // <--- Original: 0.82
+  const rOuter = Math.min(w, h*2) * 0.46;
+  const ringWidth = 220;
+  const rInner = rOuter - ringWidth;
 
-  <div class="wrap">
-    <section class="card" id="inputsCard">
-      <div class="row">
-        <div><label>Gesamtsitze</label><input id="totalSeats" type="number" value="630"></div>
-        <div><label>Sperrklausel (%)</label><input id="threshold" type="number" value="5" step="0.1"></div>
-      </div>
-      <div class="row">
-        <div><label>Wahlverfahren</label>
-          <select id="method">
-            <option value="sls" selected>Sainte-Laguë/Schepers</option>
-            <option value="dhondt">d’Hondt</option>
-            <option value="hare">Hare-Niemeyer</option>
-          </select>
-        </div>
-        <div><label>Ausnahmen (Komma, z. B. SSW)</label><input id="exceptions" placeholder="SSW"></div>
-      </div>
-      <div class="row" style="justify-content:space-between">
-        <button id="addRowBtn" type="button">+ Partei hinzufügen</button>
-        <div style="display:flex; gap:8px">
-          <button id="resetBtn" class="secondary" type="button">Zurücksetzen</button>
-          <button id="calcBtn" type="button">Neu berechnen</button>
-        </div>
-      </div>
-      <div class="muted" style="margin
+  let total = data.reduce((a,b)=>a+(b.seats||0),0); 
+  if(total===0) total = totalSeats;
+  let start = Math.PI;
+
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("transform", `translate(${cx}, ${cy})`);
+  svg.appendChild(g);
+
+  function arcPath(cx, cy, r1, r2, a0, a1){
+    const large=(a1-a0)>Math.PI?1:0;
+    const x0o=cx+r1*Math.cos(a0), y0o=cy+r1*Math.sin(a0);
+    const x1o=cx+r1*Math.cos(a1), y1o=cy+r1*Math.sin(a1);
+    const x1i=cx+r2*Math.cos(a1), y1i=cy+r2*Math.sin(a1);
+    const x0i=cx+r2*Math.cos(a0), y0i=cy+r2*Math.sin(a0);
+    return `M ${x0o} ${y0o} A ${r1} ${r1} 0 ${large} 1 ${x1o} ${y1o} L ${x1i} ${y1i} A ${r2} ${r2} 0 ${large} 0 ${x0i} ${y0i} Z`;
+  }
+
+  data.forEach(p=>{
+    const share=(p.seats||0)/total; 
+    const sweep=share*Math.PI; 
+    const end=start+sweep;
+    if(sweep>0){
+      const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d", arcPath(cx,cy,rOuter,rInner,start,end));
+      path.setAttribute("fill", p.color||"#888");
+      path.setAttribute("stroke","rgba(255,255,255,.12)"); 
+      path.setAttribute("stroke-width","1");
+      g.appendChild(path);
+    }
+    start=end;
+  });
+
+  $("#majorityLbl").textContent = (Math.floor(totalSeats/2)+1).toString();
+}
