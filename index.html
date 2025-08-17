@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
-  <p class="sub">Parteiwerte eingeben, Verfahren wählen, Koalition anhaken. Koalition farbig, andere grau.</p>
+  <p class="sub">Koalition links im Halbkreis (in deiner Listen-Reihenfolge), Rest rechts in Grau.</p>
 
   <div class="wrap">
     <section class="card" id="inputsCard">
@@ -217,19 +217,25 @@ function computeSeats(parties, seats, threshold, exceptions, method){
   return result;
 }
 
-/* ===== Zeichnen: Halbkreis (Koalition farbig, Rest grau) ===== */
+/* ===== Zeichnen: Halbkreis – Koalition links, Rest rechts (grau) ===== */
 function drawHalfRing(svg, data, totalSeats, selectedSet){
   svg.innerHTML = "";
   svg.setAttribute("viewBox","0 0 900 620");
   svg.setAttribute("preserveAspectRatio","xMidYMin meet");
 
-  const w=900, h=620, cx=w/2, cy=h*0.85; // schön groß & nicht abgeschnitten
+  const w=900, h=620, cx=w/2, cy=h*0.85; // groß & nicht abgeschnitten
   const rOuter=260, rInner=80;           // rOuter-rInner = Dicke
 
-  let total = data.reduce((a,b)=>a+(b.seats||0),0);
+  // Reihenfolge anpassen: zuerst Koalition (in Listen-Reihenfolge), dann Rest
+  const isCoal = p => selectedSet && selectedSet.has(p.name);
+  const coalition = data.filter(isCoal);
+  const others    = data.filter(p => !isCoal(p));
+  const ordered   = [...coalition, ...others];
+
+  let total = ordered.reduce((a,b)=>a+(b.seats||0),0);
   if(total===0) total = totalSeats;
 
-  let start = Math.PI;
+  let start = Math.PI; // links außen starten
   const g=document.createElementNS("http://www.w3.org/2000/svg","g");
   g.setAttribute("transform",`translate(${cx},${cy})`);
   svg.appendChild(g);
@@ -243,12 +249,11 @@ function drawHalfRing(svg, data, totalSeats, selectedSet){
     return`M${x0o} ${y0o}A${r1} ${r1} 0 ${large} 1 ${x1o} ${y1o}L${x1i} ${y1i}A${r2} ${r2} 0 ${large} 0 ${x0i} ${y0i}Z`;
   }
 
-  data.forEach(p=>{
+  ordered.forEach(p=>{
     const share=(p.seats||0)/total, sweep=share*Math.PI, end=start+sweep;
     if(sweep>0){
       const path=document.createElementNS("http://www.w3.org/2000/svg","path");
-      const isCoal = selectedSet && selectedSet.has(p.name);
-      const fill   = isCoal ? p.color : "#b7bdc7"; // grau für Nicht-Koalition
+      const fill   = isCoal(p) ? p.color : "#b7bdc7"; // Grau für Rest
       path.setAttribute("d",arcPath(rOuter,rInner,start,end));
       path.setAttribute("fill",fill);
       path.setAttribute("stroke","rgba(255,255,255,.12)");
@@ -272,9 +277,9 @@ function renderLegend(data){
 }
 
 function renderChecklist(data){
-  // nur Parteien berücksichtigen, die tatsächlich Sitze haben
+  // nur Parteien mit Sitzen berücksichtigen
   const namesShown = new Set(data.filter(p=>(p.seats||0)>0).map(p=>p.name));
-  // Selektion auf existierende Parteien beschränken (aufgeräumt halten)
+  // Selektion auf existierende Parteien beschränken
   selectedCoalition = new Set([...selectedCoalition].filter(n => namesShown.has(n)));
 
   const wrap = $("#coalitionChecklist"); wrap.innerHTML = "";
@@ -288,7 +293,7 @@ function renderChecklist(data){
     wrap.appendChild(lab);
   });
 
-  // Checkbox-Events: Set pflegen + neu färben + Summe neu
+  // Checkbox-Events
   wrap.querySelectorAll("input[type=checkbox]").forEach(cb=>{
     cb.addEventListener("change", ()=>{
       const n = cb.dataset.name;
