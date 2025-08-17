@@ -166,10 +166,15 @@ function computeSeats(parties, seats, threshold, exceptions, method){
 function drawHalfRing(svg, data, totalSeats, methodKey){
 svg.setAttribute("viewBox", `0 0 900 650`);
 svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
-const w = 900, h = 650, cx = w/2, cy = h*0.70;  // von 0.82 -> 0.70 (höher)
-const rOuter = Math.min(w, h*2) * 0.46;         // etwas Rand oben/unten
-const ringWidth = 220;
-const rInner = rOuter - ringWidth;
+// Größe + Position + ViewBox
+const w = 900, h = 650, cx = w/2, cy = h*0.64;   // war 0.82 → 0.64 = deutlich höher
+svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
+
+// Ring-Geometrie
+const rOuter   = Math.min(w, h*2) * 0.44;        // etwas kleiner außen → mehr Luft nach unten
+const ringWidth = 220;                           // deine Dicke
+const rInner    = rOuter - ringWidth;
   let total = data.reduce((a,b)=>a+(b.seats||0),0); if(total===0) total = totalSeats;
   let start = Math.PI;
   const g = document.createElementNS("http://www.w3.org/2000/svg","g");
