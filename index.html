@@ -70,10 +70,10 @@
     background:#0f1420; cursor:pointer;
   }
 
-  /* Animations */
+  /* Animations für Koalitions-Segmente */
   path.segment {
     transition: transform 0.8s ease-out, fill 0.4s ease;
-    transform-origin: bottom left;
+    transform-origin: left bottom;
   }
   path.segment.coalition {
     transform: translateY(0px);
@@ -85,7 +85,7 @@
 </head>
 <body>
   <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
-  <p class="sub">Koalition auswählen und die Sitze live sehen.</p>
+  <p class="sub">Koalition auswählen und die Sitze live sehen. „Andere“ sitzt nie im Parlament.</p>
 
   <div class="wrap">
     <section class="card">
@@ -112,7 +112,7 @@
   </div>
 
 <script>
-/* --- Polyfill für Safari: CSS.escape --- */
+/* --- Safari-Polyfill für CSS.escape --- */
 if (!window.CSS || typeof CSS.escape !== "function") {
   window.CSS = window.CSS || {};
   CSS.escape = function(value) {
@@ -130,8 +130,10 @@ const defaultParties = [
   {name:"AfD",     color:"#009EE0", pct:20},
   {name:"Linke",   color:"#BE3075", pct:6},
   {name:"BSW",     color:"#FF6A00", pct:7},
+  {name:"Andere",  color:"#7e8799", pct:4}
 ];
 
+/* Sainte-Laguë (wie vorher) */
 function allocateSeats(parties, totalSeats){
   const factor=1000000, Q=[];
   parties.forEach((p,i)=>{ const v=p.pct*factor;
@@ -144,9 +146,11 @@ function allocateSeats(parties, totalSeats){
   return c;
 }
 
+/* WICHTIG: „Andere“ wird IMMER ausgeschlossen */
 function computeSeats(parties, totalSeats, threshold){
-  const ok = parties.filter(p => p.pct >= threshold);
+  const ok = parties.filter(p => p.name !== "Andere" && p.pct >= threshold);
   const result = parties.map(p=>({...p,seats:0}));
+  if(ok.length === 0) return result;
   const counts = allocateSeats(ok,totalSeats);
   ok.forEach((p,idx)=>{
     const i = parties.findIndex(pp=>pp.name===p.name);
@@ -185,13 +189,12 @@ function drawHalfRing(svg, data, totalSeats, coalitionNames){
       path.setAttribute("d",arcPath(rOuter,rInner,start,end));
       path.setAttribute("data-name",p.name);
       path.classList.add("segment");
+      // Koalition farbig + „hochfahren“, Rest grau
       if(coalitionNames.includes(p.name)){
         path.classList.add("coalition");
         path.setAttribute("fill",p.color);
-        path.style.transform="translateY(50px)"; // Startposition unten
-        requestAnimationFrame(()=>{
-          path.style.transform="translateY(0px)";
-        });
+        path.style.transform="translateY(50px)"; // Start unten
+        requestAnimationFrame(()=>{ path.style.transform="translateY(0px)"; });
       } else {
         path.classList.add("non-coalition");
         path.setAttribute("fill","#555");
@@ -233,14 +236,22 @@ function renderChecklist(data){
 function calcAndRender(){
   const totalSeats=parseInt(document.getElementById("totalSeats").value)||0;
   const threshold=parseFloat(document.getElementById("threshold").value)||0;
+
+  // Sitze berechnen (Andere ist immer raus)
   const seatsData=computeSeats(defaultParties,totalSeats,threshold);
+
+  // Ausgewählte Koalition abfragen
   const selected=[];
   document.querySelectorAll("#coalitionChecklist input[type=checkbox]").forEach(cb=>{
-    if(cb.checked) selected.push(defaultParties[cb.dataset.idx].name);
+    if(cb.checked) selected.push(seatsData[cb.dataset.idx].name);
   });
+
+  // Zeichnen + UI
   drawHalfRing(document.getElementById("seatChart"),seatsData,totalSeats,selected);
   renderLegend(seatsData);
   renderChecklist(seatsData);
+
+  // Koalitionssumme & Mehrheit
   const sum=seatsData.filter(p=>selected.includes(p.name)).reduce((a,b)=>a+b.seats,0);
   document.getElementById("coalSeats").textContent=sum;
   const majority=Math.floor(totalSeats/2)+1;
