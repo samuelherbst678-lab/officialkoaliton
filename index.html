@@ -26,7 +26,7 @@
 </head>
 <body>
   <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
-  <p class="sub">Mit dickem, nicht abgeschnittenem Halbkreis.</p>
+  <p class="sub">Alles wie vorher – nur mit **dickerem Halbkreis**.</p>
 
   <div class="wrap">
     <section class="card" id="inputsCard">
@@ -42,7 +42,7 @@
             <option value="hare">Hare-Niemeyer</option>
           </select>
         </div>
-        <div><label>Ausnahmen</label><input id="exceptions" placeholder="SSW"></div>
+        <div><label>Ausnahmen (Komma, z. B. SSW)</label><input id="exceptions" placeholder="SSW"></div>
       </div>
       <div class="row" style="justify-content:space-between">
         <button id="addRowBtn" type="button">+ Partei hinzufügen</button>
@@ -51,12 +51,12 @@
           <button id="calcBtn" type="button">Neu berechnen</button>
         </div>
       </div>
-      <div class="muted" style="margin:6px 0 4px">Parteien &amp; Prozentwerte (Name, % und Farbe)</div>
+      <div class="muted" style="margin:6px 0 4px">Parteien &amp; Prozentwerte (Name, % und Farbe frei wählbar)</div>
       <div id="partyList"></div>
     </section>
 
     <section class="card">
-      <svg id="seatChart" viewBox="0 0 900 600"></svg>
+      <svg id="seatChart" viewBox="0 0 900 460"></svg>
       <div class="legend" id="legend"></div>
 
       <div class="row" style="margin-top:12px">
@@ -77,155 +77,178 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
 const defaultParties = [
-  {name:"CDU/CSU", color:"#000000", pct:28.0},
-  {name:"SPD",     color:"#E3000F", pct:17.0},
-  {name:"Grüne",   color:"#1FA12E", pct:12.0},
-  {name:"FDP",     color:"#FFED00", pct:6.0},
-  {name:"AfD",     color:"#009EE0", pct:20.0},
-  {name:"Linke",   color:"#BE3075", pct:6.0},
-  {name:"BSW",     color:"#FF6A00", pct:7.0},
-  {name:"Andere",  color:"#7e8799", pct:4.0},
+  {name:"CDU/CSU", color:"#000000", pct:28.0, exception:false},
+  {name:"SPD",     color:"#E3000F", pct:17.0, exception:false},
+  {name:"Grüne",   color:"#1FA12E", pct:12.0, exception:false},
+  {name:"FDP",     color:"#FFED00", pct:6.0,  exception:false},
+  {name:"AfD",     color:"#009EE0", pct:20.0, exception:false},
+  {name:"Linke",   color:"#BE3075", pct:6.0,  exception:false},
+  {name:"BSW",     color:"#FF6A00", pct:7.0,  exception:false},
+  {name:"Andere",  color:"#7e8799", pct:4.0,  exception:false},
 ];
 
 function readInputs(){
-  const totalSeats = parseInt($("#totalSeats").value)||0;
-  const threshold = parseFloat($("#threshold").value)||0;
+  const totalSeats = parseInt($("#totalSeats").value) || 0;
+  const threshold = parseFloat($("#threshold").value) || 0;
   const method = $("#method").value;
-  const exc = ($("#exceptions").value||"").split(",").map(s=>s.trim()).filter(Boolean);
+  const exc = ($("#exceptions").value || "").split(",").map(s => s.trim()).filter(Boolean);
   const partyRows = $$("#partyList .party-row");
-  const parties = partyRows.map(row=>({
-    name: row.querySelector(".pName").value.trim()||"Partei",
+  const parties = partyRows.map(row => ({
+    name: row.querySelector(".pName").value.trim() || "Partei",
     color: row.querySelector(".pColor").value,
-    pct: parseFloat(row.querySelector(".pPct").value)||0,
-    exception: row.querySelector(".pExc")?.checked
+    pct: parseFloat(row.querySelector(".pPct").value) || 0,
+    exception: row.querySelector(".pExc").checked
   }));
-  return {totalSeats, threshold, method, exceptions:exc, parties};
+  return {totalSeats, threshold, method, exceptions: exc, parties};
 }
 
 function setDefaults(){
-  $("#partyList").innerHTML="";
+  $("#partyList").innerHTML = "";
   defaultParties.forEach(addPartyRow);
   calcAndRender();
 }
 
-function addPartyRow(p={name:"Neue Partei",color:"#8888ff",pct:0,exception:false}){
-  const row=document.createElement("div");
-  row.className="party-row";
-  row.innerHTML=`
+function addPartyRow(p = {name:"Neue Partei", color:"#8888ff", pct:0, exception:false}){
+  const row = document.createElement("div");
+  row.className = "party-row";
+  row.innerHTML = `
     <div class="handle">⋮⋮</div>
-    <input class="pName" type="text" value="${p.name}">
-    <input class="pPct" type="number" min="0" max="100" step="0.1" value="${p.pct}">
-    <input class="pColor" type="color" value="${p.color}">
-    <label style="font-size:12px;color:#a6b0bf"><input type="checkbox" class="pExc" ${p.exception?"checked":""}> Ausnahme</label>
-    <div class="del">✕</div>
+    <input class="pName" type="text" value="${p.name}" title="Parteiname">
+    <input class="pPct" type="number" min="0" max="100" step="0.1" value="${p.pct}" title="Prozentwert">
+    <input class="pColor" type="color" value="${p.color}" title="Parteifarbe wählen">
+    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#a6b0bf"><input type="checkbox" class="pExc" ${p.exception ? "checked":""}> Ausnahme</label>
+    <div class="del" title="Entfernen">✕</div>
   `;
-  row.querySelector(".del").onclick=()=>{row.remove();calcAndRender();};
+  row.querySelector(".del").onclick = () => { row.remove(); calcAndRender(); };
   $("#partyList").appendChild(row);
-  row.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",calcAndRender));
+  row.querySelectorAll("input").forEach(inp => inp.addEventListener("change", calcAndRender));
 }
 
-function filterByThreshold(parties,threshold,exceptions){
-  return parties.filter(p=>(p.pct>0)&&(p.pct>=threshold||exceptions.includes(p.name)||p.exception));
+function filterByThreshold(parties, threshold, exceptions){
+  return parties.filter(p => (p.pct > 0) && (p.pct >= threshold || exceptions.includes(p.name) || p.exception));
 }
 
-function sls(parties,seats){
-  const f=1000000; const Q=[];
-  parties.forEach((p,i)=>{const v=p.pct*f; for(let k=0;k<seats+5;k++){Q.push({i,val:v/(k+0.5)})}});
+// --- Zuteilungsverfahren ---
+function sls(parties, seats){
+  const factor = 1000000; const Q=[];
+  parties.forEach((p,i)=>{const v=p.pct*factor; for(let k=0;k<seats+5;k++){Q.push({i,val:v/(k+0.5)})}});
   Q.sort((a,b)=>b.val-a.val); const top=Q.slice(0,seats); const c=new Array(parties.length).fill(0);
   top.forEach(q=>c[q.i]++); return c;
 }
+function dhondt(parties, seats){
+  const factor=1000000; const Q=[];
+  parties.forEach((p,i)=>{const v=p.pct*factor; for(let k=1;k<=seats;k++){Q.push({i,val:v/k})}});
+  Q.sort((a,b)=>b.val-a.val); const top=Q.slice(0,seats); const c=new Array(parties.length).fill(0);
+  top.forEach(q=>c[q.i]++); return c;
+}
+function hareNiemeyer(parties, seats){
+  const votes=parties.map(p=>p.pct); const total=votes.reduce((a,b)=>a+b,0); if(total===0) return new Array(parties.length).fill(0);
+  const quotas=votes.map(v=>v/total*seats); const base=quotas.map(q=>Math.floor(q)); let assigned=base.reduce((a,b)=>a+b,0);
+  const rem=quotas.map((q,i)=>({i,r:q-Math.floor(q)})).sort((a,b)=>b.r-a.r);
+  for(let k=0; assigned<seats && k<rem.length; k++){ base[rem[k].i]++; assigned++; }
+  return base;
+}
+function allocateSeats(parties, seats, method){ return method==="dhondt"?dhondt(parties,seats):method==="hare"?hareNiemeyer(parties,seats):sls(parties,seats); }
 
-function computeSeats(parties,seats,threshold,exceptions,method){
-  const ok=filterByThreshold(parties,threshold,exceptions);
-  const result=parties.map(p=>({...p,seats:0}));
-  if(ok.length===0)return result;
-  const counts=sls(ok,seats);
-  ok.forEach((p,idx)=>{const j=parties.findIndex(q=>q.name===p.name);if(j>=0)result[j].seats=counts[idx];});
+function computeSeats(parties, seats, threshold, exceptions, method){
+  const ok = filterByThreshold(parties, threshold, exceptions);
+  const result = parties.map(p => ({...p, seats:0}));
+  if(ok.length === 0) return result;
+  const counts = allocateSeats(ok, seats, method);
+  ok.forEach((p, idx) => {
+    const j = parties.findIndex(q => q.name === p.name && q.color === p.color && q.pct === p.pct);
+    if(j >= 0) result[j].seats = counts[idx];
+  });
   return result;
 }
 
-function drawHalfRing(svg,data,totalSeats){
-  svg.innerHTML="";
-  svg.setAttribute("viewBox","0 0 900 600");
-  svg.setAttribute("preserveAspectRatio","xMidYMin meet");
-  const w=900,h=600,cx=w/2,cy=h*0.85;
-  const rOuter=260; 
-  const rInner=80;   // = dicke des Rings
-  let total=data.reduce((a,b)=>a+(b.seats||0),0); if(total===0)total=totalSeats;
-  let start=Math.PI;
-  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
-  g.setAttribute("transform",`translate(${cx},${cy})`);
-  svg.appendChild(g);
-  function arcPath(r1,r2,a0,a1){
+// --- Zeichnen: dicker Halbkreis (nur hier geändert) ---
+function drawHalfRing(svg, data, totalSeats, methodKey){
+  svg.innerHTML = "";
+  const w=900, h=460, cx=w/2, cy=h*0.92;
+  const rOuter=Math.min(w,h*2)*0.48;
+  const ringWidth = 250;        // << dickerer Ring
+  const rInner = rOuter - ringWidth;
+
+  let total = data.reduce((a,b)=>a+(b.seats||0),0); if(total===0) total = totalSeats;
+  let start = Math.PI;
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g"); svg.appendChild(g);
+
+  function arcPath(cx, cy, r1, r2, a0, a1){
     const large=(a1-a0)>Math.PI?1:0;
-    const x0o=r1*Math.cos(a0),y0o=r1*Math.sin(a0);
-    const x1o=r1*Math.cos(a1),y1o=r1*Math.sin(a1);
-    const x1i=r2*Math.cos(a1),y1i=r2*Math.sin(a1);
-    const x0i=r2*Math.cos(a0),y0i=r2*Math.sin(a0);
-    return`M${x0o} ${y0o}A${r1} ${r1} 0 ${large} 1 ${x1o} ${y1o}L${x1i} ${y1i}A${r2} ${r2} 0 ${large} 0 ${x0i} ${y0i}Z`;
+    const x0o=cx+r1*Math.cos(a0), y0o=cy+r1*Math.sin(a0);
+    const x1o=cx+r1*Math.cos(a1), y1o=cy+r1*Math.sin(a1);
+    const x1i=cx+r2*Math.cos(a1), y1i=cy+r2*Math.sin(a1);
+    const x0i=cx+r2*Math.cos(a0), y0i=cy+r2*Math.sin(a0);
+    return `M ${x0o} ${y0o} A ${r1} ${r1} 0 ${large} 1 ${x1o} ${y1o} L ${x1i} ${y1i} A ${r2} ${r2} 0 ${large} 0 ${x0i} ${y0i} Z`;
   }
+
   data.forEach(p=>{
-    const share=(p.seats||0)/total;const sweep=share*Math.PI;const end=start+sweep;
+    const share=(p.seats||0)/total; const sweep=share*Math.PI; const end=start+sweep;
     if(sweep>0){
       const path=document.createElementNS("http://www.w3.org/2000/svg","path");
-      path.setAttribute("d",arcPath(rOuter,rInner,start,end));
-      path.setAttribute("fill",p.color||"#888");
+      path.setAttribute("d", arcPath(cx,cy,rOuter,rInner,start,end));
+      path.setAttribute("fill", p.color||"#888");
+      path.setAttribute("stroke","rgba(255,255,255,.12)"); path.setAttribute("stroke-width","1");
       g.appendChild(path);
     }
     start=end;
   });
-  $("#majorityLbl").textContent=(Math.floor(totalSeats/2)+1).toString();
+
+  $("#majorityLbl").textContent = (Math.floor(totalSeats/2)+1).toString();
 }
 
 function renderLegend(data){
-  const legend=$("#legend");legend.innerHTML="";
+  const legend=$("#legend"); legend.innerHTML="";
   data.filter(p=>(p.seats||0)>0).forEach(p=>{
-    const el=document.createElement("div");el.className="item";
-    el.innerHTML=`<span class="sw" style="background:${p.color}"></span><strong>${p.name}</strong> – ${p.seats} Sitze`;
+    const el=document.createElement("div"); el.className="item";
+    el.innerHTML = `<span class="sw" style="background:${p.color}"></span><strong>${p.name}</strong> – ${p.seats} Sitze`;
     legend.appendChild(el);
   });
 }
 
-function renderChecklist(data){
-  const wrap=$("#coalitionChecklist");wrap.innerHTML="";
-  data.filter(p=>(p.seats||0)>0).forEach((p,idx)=>{
-    const lab=document.createElement("label");
-    lab.innerHTML=`<input type="checkbox" data-idx="${idx}"><span class="sw" style="background:${p.color}"></span> ${p.name} (${p.seats})`;
-    wrap.appendChild(lab);
-  });
-  wrap.querySelectorAll("input").forEach(cb=>cb.addEventListener("change",recomputeCoalitionSum));
+function recomputeCoalitionSum(){
+  const totalSeats = parseInt($("#totalSeats").value) || 0;
+  const majority = Math.floor(totalSeats/2)+1;
+  const selected = [];
+  $("#coalitionChecklist").querySelectorAll("input[type=checkbox]").forEach(cb => { if(cb.checked) selected.push(parseInt(cb.dataset.idx)); });
+  const data = window.__lastSeats || [];
+  const sum = selected.reduce((a,i)=> a + (data[i]?.seats||0), 0);
+  $("#coalSeats").textContent = sum;
+  const ok = sum >= majority;
+  $("#coalMajority").textContent = ok ? "ja" : "nein";
+  $("#coalMajority").className = ok ? "ok" : "bad";
 }
 
-function recomputeCoalitionSum(){
-  const totalSeats=parseInt($("#totalSeats").value)||0;
-  const majority=Math.floor(totalSeats/2)+1;
-  const data=window.__lastSeats||[];
-  let sum=0;
-  $("#coalitionChecklist input:checked").forEach(cb=>{sum+=data[cb.dataset.idx]?.seats||0;});
-  $("#coalSeats").textContent=sum;
-  const ok=sum>=majority;
-  $("#coalMajority").textContent=ok?"ja":"nein";
-  $("#coalMajority").className=ok?"ok":"bad";
+function renderChecklist(data){
+  const wrap = $("#coalitionChecklist");
+  wrap.innerHTML = "";
+  data.filter(p=> (p.seats||0) > 0).forEach((p, idx) => {
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" data-idx="${idx}"><span class="sw" style="background:${p.color}"></span> ${p.name} (${p.seats})`;
+    wrap.appendChild(lab);
+  });
+  wrap.querySelectorAll("input[type=checkbox]").forEach(cb => cb.addEventListener("change", recomputeCoalitionSum));
 }
 
 function calcAndRender(){
-  const {totalSeats,threshold,method,exceptions,parties}=readInputs();
-  const seatsData=computeSeats(parties,totalSeats,threshold,exceptions,method);
-  const shown=seatsData.filter(p=>(p.seats||0)>0);
-  window.__lastSeats=shown;
-  drawHalfRing($("#seatChart"),shown,totalSeats);
+  const {totalSeats, threshold, method, exceptions, parties} = readInputs();
+  const seatsData = computeSeats(parties, totalSeats, threshold, exceptions, method);
+  const shown = seatsData.filter(p => (p.seats||0)>0);
+  window.__lastSeats = shown;
+  drawHalfRing($("#seatChart"), shown, totalSeats, method);
   renderLegend(shown);
   renderChecklist(shown);
 }
 
-// Events
-$("#addRowBtn").addEventListener("click",()=>{addPartyRow();calcAndRender();});
-$("#resetBtn").addEventListener("click",setDefaults);
-$("#calcBtn").addEventListener("click",calcAndRender);
-$("#totalSeats").addEventListener("change",calcAndRender);
-$("#threshold").addEventListener("change",calcAndRender);
-$("#method").addEventListener("change",calcAndRender);
-$("#exceptions").addEventListener("change",calcAndRender);
+// Wire-up
+$("#addRowBtn").addEventListener("click", ()=>{ addPartyRow(); calcAndRender(); });
+$("#resetBtn").addEventListener("click", setDefaults);
+$("#calcBtn").addEventListener("click", calcAndRender);
+$("#totalSeats").addEventListener("change", calcAndRender);
+$("#threshold").addEventListener("change", calcAndRender);
+$("#method").addEventListener("change", calcAndRender);
+$("#exceptions").addEventListener("change", calcAndRender);
 
 // Init
 setDefaults();
