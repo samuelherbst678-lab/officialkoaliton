@@ -164,7 +164,8 @@ function computeSeats(parties, seats, threshold, exceptions, method){
 
 // --- Zeichnen: dicker Halbkreis (nur hier geändert) ---
 function drawHalfRing(svg, data, totalSeats, methodKey){
-  svg.innerHTML = "";
+  svg.innerHTML = "";svg.setAttribute("viewBox", `0 0 900 650`);   // neue Höhe 650
+svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
 
 const w = 900, h = 650, cx = w/2, cy = h*0.82;
 const rOuter = Math.min(w,h*2)*0.48;
