@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Koalitionsrechner - Dicke Version</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    #chart { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Koalitionsrechner (dicke Halbkreise)</h1>
+  <div id="chart"></div>
+
+  <script>
+    function drawHalfRing(data) {
+      const w = 900, h = 460;
+      const cx = w/2, cy = h*0.92;
+      const rOuter = Math.min(w, h*2) * 0.48;
+      const ringWidth = 120;        // Breite anpassen (120 = dick wie gewünscht)
+      const rInner = rOuter - ringWidth;
+
+      const svg = d3.select("#chart")
+        .append("svg")
+        .attr("width", w)
+        .attr("height", h);
+
+      const arc = d3.arc()
+        .innerRadius(rInner)
+        .outerRadius(rOuter)
+        .startAngle(d => d.startAngle)
+        .endAngle(d => d.endAngle);
+
+      const pie = d3.pie()
+        .value(d => d.seats)
+        .sort(null)
+        .startAngle(-Math.PI / 1)
+        .endAngle(0);
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${cx},${cy})`);
+
+      g.selectAll("path")
+        .data(pie(data))
+        .enter()
+        .append("path")
+        .attr("d", arc)
+        .attr("fill", d => d.data.color)
+        .attr("stroke", "white")
+        .attr("stroke-width", 2);
+    }
+
+    // Beispiel-Daten
+    const data = [
+      { party: "Union", seats: 210, color: "black" },
+      { party: "SPD", seats: 131, color: "red" },
+      { party: "Grüne", seats: 65, color: "green" },
+      { party: "FDP", seats: 52, color: "yellow" },
+      { party: "Linke", seats: 66, color: "darkred" },
+      { party: "AfD", seats: 105, color: "blue" },
+      { party: "SSW", seats: 1, color: "grey" }
+    ];
+
+    drawHalfRing(data);
+  </script>
+</body>
+</html>
