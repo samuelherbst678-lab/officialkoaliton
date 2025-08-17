@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Koalitionsrechner – Koalition nach Klick-Reihenfolge links</title>
+<title>Koalitionsrechner – Proportionale Sitzverteilung</title>
 <style>
   :root {
     --bg:#0b0f14; --card:#121823; --ink:#e8eef7; --muted:#a6b0bf;
@@ -51,16 +51,15 @@
   .checklist label{display:flex; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.08); padding:8px 10px; border-radius:999px; background:#0f1420}
   .ok{color:var(--ok)} .bad{color:var(--bad)}
   svg{display:block; width:100%; height:auto}
-
-  /* sanfte visuelle Übergänge für Pfade */
+  /* kleine Fade/Scale für neue/wegfallende Bögen */
   .arc{opacity:1; transition:opacity .25s ease, transform .25s ease}
   .arc.enter{opacity:0; transform:scale(0.98)}
   .arc.leave{opacity:0; transform:scale(1.02)}
 </style>
 </head>
 <body>
-  <h1>Koalitionsrechner</h1>
-  <p class="sub">Koalitionsparteien stehen <strong>links</strong> in der <strong>Klick-Reihenfolge</strong>, Rest rechts in Grau. Neue Koalitionssegmente fahren von unten links hoch.</p>
+  <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
+  <p class="sub">Koalition links im Halbkreis (in deiner Listen-Reihenfolge) – sanfte Animation beim Anklicken.</p>
 
   <div class="wrap">
     <section class="card" id="inputsCard">
@@ -110,13 +109,7 @@
 /* ===== Helpers & State ===== */
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
-
-/* Koalitionsauswahl:
-   - order: Array in der Klick-Reihenfolge
-   - set:   für schnelle Nachschau */
-let selectedOrder = [];
-let selectedSet   = new Set();
-
+let selectedCoalition = new Set(); // Namen der angehakten Parteien
 const GREY = "#b7bdc7";
 
 /* ===== Defaults ===== */
@@ -131,7 +124,7 @@ const defaultParties = [
   {name:"Andere",  color:"#7e8799", pct:4.0,  exception:false}
 ];
 
-/* ===== Inputs ===== */
+/* ===== Inputs lesen ===== */
 function readInputs(){
   const totalSeats = parseInt($("#totalSeats").value) || 0;
   const threshold  = parseFloat($("#threshold").value) || 0;
@@ -172,26 +165,34 @@ function addPartyRow(p = {name:"Neue Partei", color:"#8888ff", pct:0, exception:
   row.querySelectorAll("input").forEach(inp => inp.addEventListener("change", calcAndRender));
 }
 
-/* ===== Zuteilung ===== */
+/* ===== Filter & Zuteilung ===== */
 function filterByThreshold(parties, threshold, exceptions){
   return parties.filter(p => (p.pct>0) && (p.pct >= threshold || exceptions.includes(p.name) || p.exception));
 }
+
+// Sainte-Laguë/Schepers
 function sls(parties, seats){
   const factor = 1_000_000, Q=[];
   parties.forEach((p,i)=>{
     const v=p.pct*factor; for(let k=0;k<seats+5;k++){ Q.push({i,val:v/(k+0.5)}) }
   });
-  Q.sort((a,b)=>b.val-a.val); const top=Q.slice(0,seats), c=new Array(parties.length).fill(0);
+  Q.sort((a,b)=>b.val-a.val);
+  const top=Q.slice(0,seats), c=new Array(parties.length).fill(0);
   top.forEach(q=>c[q.i]++); return c;
 }
+
+// d’Hondt
 function dhondt(parties, seats){
   const factor = 1_000_000, Q=[];
   parties.forEach((p,i)=>{
     const v=p.pct*factor; for(let k=1;k<=seats;k++){ Q.push({i,val:v/k}) }
   });
-  Q.sort((a,b)=>b.val-a.val); const top=Q.slice(0,seats), c=new Array(parties.length).fill(0);
+  Q.sort((a,b)=>b.val-a.val);
+  const top=Q.slice(0,seats), c=new Array(parties.length).fill(0);
   top.forEach(q=>c[q.i]++); return c;
 }
+
+// Hare-Niemeyer
 function hareNiemeyer(parties, seats){
   const votes=parties.map(p=>p.pct), total=votes.reduce((a,b)=>a+b,0);
   if(total===0) return new Array(parties.length).fill(0);
@@ -202,11 +203,13 @@ function hareNiemeyer(parties, seats){
   for(let k=0; assigned<seats && k<rem.length; k++){ base[rem[k].i]++; assigned++; }
   return base;
 }
+
 function allocateSeats(parties, seats, method){
   if(method==="dhondt") return dhondt(parties, seats);
   if(method==="hare")   return hareNiemeyer(parties, seats);
   return sls(parties, seats);
 }
+
 function computeSeats(parties, seats, threshold, exceptions, method){
   const ok = filterByThreshold(parties, threshold, exceptions);
   const result = parties.map(p => ({...p, seats:0}));
@@ -219,15 +222,12 @@ function computeSeats(parties, seats, threshold, exceptions, method){
   return result;
 }
 
-/* ===== Arcs berechnen (Koalition nach Klick-Reihenfolge links) ===== */
-function layoutArcs(data, totalSeats){
-  // Coalition in Reihenfolge der Klicks
-  const coalition = selectedOrder
-    .map(n => data.find(p => p.name===n))
-    .filter(Boolean);
-
-  const others = data.filter(p => !selectedSet.has(p.name));
-  const ordered = [...coalition, ...others];
+/* ===== Layout-Helfer ===== */
+function layoutArcs(data, totalSeats, selectedSet){
+  const isCoal = p => selectedSet && selectedSet.has(p.name);
+  const coalition = data.filter(isCoal);           // in Listenreihenfolge
+  const others    = data.filter(p => !isCoal(p));
+  const ordered   = [...coalition, ...others];
 
   let total = ordered.reduce((a,b)=>a+(b.seats||0),0);
   if(total===0) total = totalSeats;
@@ -236,11 +236,12 @@ function layoutArcs(data, totalSeats){
   return ordered.map(p=>{
     const share = (p.seats||0)/total;
     const sweep = share*Math.PI;
-    const arc   = {name:p.name, color:p.color, isCoal:selectedSet.has(p.name), start, end:start+sweep};
+    const arc   = {name:p.name, color:p.color, fill:isCoal(p)?p.color:GREY, start, end:start+sweep};
     start += sweep;
     return arc;
   });
 }
+
 function arcD(r1,r2,a0,a1){
   const large = (a1-a0)>Math.PI ? 1 : 0;
   const x0o=r1*Math.cos(a0),y0o=r1*Math.sin(a0);
@@ -250,11 +251,12 @@ function arcD(r1,r2,a0,a1){
   return `M${x0o} ${y0o}A${r1} ${r1} 0 ${large} 1 ${x1o} ${y1o}L${x1i} ${y1i}A${r2} ${r2} 0 ${large} 0 ${x0i} ${y0i}Z`;
 }
 
-/* ===== Zeichnen mit Tween „von unten links“ für neu gewählte Parteien ===== */
-function drawHalfRing(svg, data, totalSeats){
+/* ===== Zeichnen mit sanfter Animation ===== */
+function drawHalfRing(svg, data, totalSeats, selectedSet){
   const w=900, h=620, cx=w/2, cy=h*0.85;
   const rOuter=260, rInner=80;
 
+  // Gruppe initialisieren
   let g = svg.querySelector("g.seats");
   if(!g){
     svg.innerHTML = "";
@@ -266,30 +268,33 @@ function drawHalfRing(svg, data, totalSeats){
     svg.appendChild(g);
   }
 
-  const newArcs = layoutArcs(data, totalSeats);
+  const newArcs = layoutArcs(data, totalSeats, selectedSet);
 
+  // Map alter Winkel (für Tween) lesen
   const prev = svg.__angles || {};
   const next = {};
-  const duration = 380;
+  const duration = 350; // ms
   const ease = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
 
-  // anlegen/aktualisieren
+  // Pfade anlegen/aktualisieren
   newArcs.forEach(arc=>{
     next[arc.name] = {start:arc.start, end:arc.end};
+
     let path = g.querySelector(`path[data-name="${CSS.escape(arc.name)}"]`);
     if(!path){
       path = document.createElementNS("http://www.w3.org/2000/svg","path");
       path.dataset.name = arc.name;
       path.setAttribute("class","arc enter");
       g.appendChild(path);
+      // kleiner Delay, damit CSS-Enter greift
       requestAnimationFrame(()=> path.classList.remove("enter"));
     }
-    path.setAttribute("fill", arc.isCoal ? arc.color : GREY);
+    path.setAttribute("fill", arc.fill);
     path.setAttribute("stroke","rgba(255,255,255,.12)");
     path.setAttribute("stroke-width","1");
   });
 
-  // entfernte Pfade ausfaden
+  // Entfernte Pfade ausfaden
   g.querySelectorAll("path.arc").forEach(p=>{
     const n = p.dataset.name;
     if(!newArcs.find(a=>a.name===n)){
@@ -298,23 +303,28 @@ function drawHalfRing(svg, data, totalSeats){
     }
   });
 
-  // Animation (neue Segmente starten bei π→π, also „unten links“)
+  // Numerische Tween-Animation der Winkel
   const startTime = performance.now();
   (function animate(now){
     const t = Math.min(1, (now - startTime)/duration);
     const k = ease(t);
 
     newArcs.forEach(arc=>{
-      const was = prev[arc.name] || {start:Math.PI, end:Math.PI}; // NEU: von unten links
-      const curS = was.start + (arc.start - was.start)*k;
-      const curE = was.end   + (arc.end   - was.end  )*k;
+      const prevArc = prev[arc.name] || {start:arc.start, end:arc.start}; // neu -> von Nullbreite
+      const curStart = prevArc.start + (arc.start - prevArc.start)*k;
+      const curEnd   = prevArc.end   + (arc.end   - prevArc.end)*k;
+
       const path = g.querySelector(`path[data-name="${CSS.escape(arc.name)}"]`);
-      if(path) path.setAttribute("d", arcD(rOuter, rInner, curS, curE));
+      if(path){
+        path.setAttribute("d", arcD(rOuter, rInner, curStart, curEnd));
+      }
     });
 
-    if(t<1) requestAnimationFrame(animate); else svg.__angles = next;
+    if(t < 1){ requestAnimationFrame(animate); }
+    else { svg.__angles = next; }
   })(performance.now());
 
+  // Mehrheitstext setzen
   $("#majorityLbl").textContent = (Math.floor(totalSeats/2)+1).toString();
 }
 
@@ -327,17 +337,16 @@ function renderLegend(data){
     legend.appendChild(el);
   });
 }
+
 function renderChecklist(data){
   // nur Parteien mit Sitzen berücksichtigen
   const namesShown = new Set(data.filter(p=>(p.seats||0)>0).map(p=>p.name));
-  // nicht mehr vorhandene Auswahl raus
-  selectedOrder = selectedOrder.filter(n => namesShown.has(n));
-  selectedSet   = new Set(selectedOrder);
+  selectedCoalition = new Set([...selectedCoalition].filter(n => namesShown.has(n)));
 
   const wrap = $("#coalitionChecklist"); wrap.innerHTML = "";
   data.filter(p=>(p.seats||0)>0).forEach(p=>{
     const lab = document.createElement("label");
-    const checked = selectedSet.has(p.name) ? "checked" : "";
+    const checked = selectedCoalition.has(p.name) ? "checked" : "";
     lab.innerHTML = `
       <input type="checkbox" data-name="${p.name}" ${checked}>
       <span class="sw" style="background:${p.color}"></span> ${p.name} (${p.seats})
@@ -345,18 +354,12 @@ function renderChecklist(data){
     wrap.appendChild(lab);
   });
 
-  // Klick-Reihenfolge steuern
   wrap.querySelectorAll("input[type=checkbox]").forEach(cb=>{
     cb.addEventListener("change", ()=>{
       const n = cb.dataset.name;
-      if(cb.checked){
-        if(!selectedSet.has(n)) { selectedOrder.push(n); selectedSet.add(n); }
-      }else{
-        selectedOrder = selectedOrder.filter(x => x!==n);
-        selectedSet    = new Set(selectedOrder);
-      }
+      if(cb.checked) selectedCoalition.add(n); else selectedCoalition.delete(n);
       recomputeCoalitionSum();
-      drawHalfRing($("#seatChart"), window.__lastSeats||[], parseInt($("#totalSeats").value)||0);
+      drawHalfRing($("#seatChart"), window.__lastSeats||[], parseInt($("#totalSeats").value)||0, selectedCoalition);
     });
   });
 }
@@ -367,7 +370,7 @@ function recomputeCoalitionSum(){
   const majority   = Math.floor(totalSeats/2) + 1;
   const data       = window.__lastSeats || [];
 
-  const sum = data.reduce((a,p)=> a + (selectedSet.has(p.name) ? (p.seats||0) : 0), 0);
+  const sum = data.reduce((a,p)=> a + (selectedCoalition.has(p.name) ? (p.seats||0) : 0), 0);
   $("#coalSeats").textContent = sum;
   const ok = sum >= majority;
   $("#coalMajority").textContent = ok ? "ja" : "nein";
@@ -381,7 +384,7 @@ function calcAndRender(){
   const shown = seatsData.filter(p => (p.seats||0)>0);
   window.__lastSeats = shown;
 
-  drawHalfRing($("#seatChart"), shown, totalSeats);
+  drawHalfRing($("#seatChart"), shown, totalSeats, selectedCoalition);
   renderLegend(shown);
   renderChecklist(shown);
   recomputeCoalitionSum();
@@ -389,17 +392,14 @@ function calcAndRender(){
 
 /* ===== Events ===== */
 $("#addRowBtn").addEventListener("click", ()=>{ addPartyRow(); calcAndRender(); });
-$("#resetBtn").addEventListener("click", ()=>{
-  selectedOrder=[]; selectedSet=new Set();
-  setDefaults();
-});
+$("#resetBtn").addEventListener("click", setDefaults);
 $("#calcBtn").addEventListener("click", calcAndRender);
 $("#totalSeats").addEventListener("change", calcAndRender);
 $("#threshold").addEventListener("change", calcAndRender);
 $("#method").addEventListener("change", calcAndRender);
 $("#exceptions").addEventListener("change", calcAndRender);
 
-/* ===== Init ===== */
+/* ===== Start ===== */
 setDefaults();
 </script>
 </body>
