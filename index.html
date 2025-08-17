@@ -165,10 +165,10 @@ function computeSeats(parties, seats, threshold, exceptions, method){
 // --- Zeichnen: dicker Halbkreis (nur hier geändert) ---
 function drawHalfRing(svg, data, totalSeats, methodKey){
   svg.innerHTML = "";
-  const w=900, h=460, cx=w/2, cy=h*0.92;
-  const rOuter=Math.min(w,h*2)*0.48;
-  const ringWidth = 210;        // << dickerer Ring
-  const rInner = rOuter - ringWidth;
+  const w = 900, h = 650, cx = w/2, cy = h*0.82;
+const rOuter = Math.min(w,h*2)*0.48;
+const ringWidth = 220;   // richtig dicker Ring
+const rInner = rOuter - ringWidth;
 
   let total = data.reduce((a,b)=>a+(b.seats||0),0); if(total===0) total = totalSeats;
   let start = Math.PI;
