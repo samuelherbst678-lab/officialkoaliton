@@ -166,7 +166,7 @@ function computeSeats(parties, seats, threshold, exceptions, method){
 function drawHalfRing(svg, data, totalSeats, methodKey){
   svg.innerHTML = "";
   const w = 900, h = 620;     // höhere ViewBox, mehr Platz nach oben
-const cx = w / 2, cy = h * 0.92;  // Halbkreis leicht nach unten verschoben
+  const cx = w / 2, cy = h * 0.92;  // Halbkreis leicht nach unten verschoben
   const ringWidth = 220;        // << dickerer Ring
   const rInner = rOuter - ringWidth;
 
