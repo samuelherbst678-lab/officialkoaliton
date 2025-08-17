@@ -164,15 +164,18 @@ function computeSeats(parties, seats, threshold, exceptions, method){
 
 // --- Zeichnen: dicker Halbkreis (nur hier geändert) ---
 function drawHalfRing(svg, data, totalSeats, methodKey){
-  svg.innerHTML = "";svg.setAttribute("viewBox", `0 0 900 650`);   // neue Höhe 650
+svg.setAttribute("viewBox", `0 0 900 650`);
 svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
-const w = 900, h = 650, cx = w/2, cy = h*0.74;   // von 0.92 auf 0.74
-const rOuter = Math.min(w,h*2)*0.48;
-const ringWidth = 220;   // richtig dicker Ring
+const w = 900, h = 650, cx = w/2, cy = h*0.70;  // von 0.82 -> 0.70 (höher)
+const rOuter = Math.min(w, h*2) * 0.46;         // etwas Rand oben/unten
+const ringWidth = 220;
 const rInner = rOuter - ringWidth;
   let total = data.reduce((a,b)=>a+(b.seats||0),0); if(total===0) total = totalSeats;
   let start = Math.PI;
-  const g = document.createElementNS("http://www.w3.org/2000/svg","g"); svg.appendChild(g);
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+const yOffset = -50;                             // negativ = nach oben
+g.setAttribute("transform", `translate(${cx}, ${cy + yOffset})`);
+svg.appendChild(g);
 
   function arcPath(cx, cy, r1, r2, a0, a1){
     const large=(a1-a0)>Math.PI?1:0;
