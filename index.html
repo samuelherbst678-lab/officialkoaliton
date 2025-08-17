@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Koalitionsrechner – Proportionale Sitzverteilung</title>
 <style>
-  :root { --bg:#0b0f14; --card:#121823; --ink:#e8eef7; --muted:#a6b0bf; --ok:#37d07a; --bad:#ff6a6a; --radius:14px; }
+:root { --bg:#0b0f14; --card:#121823; --ink:#e8eef7; --muted:#a6b0bf; --ok:#37d07a; --bad:#ff6a6a; --radius:14px; }
   *{box-sizing:border-box}
+ 
   body{margin:0; padding:32px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial; background:radial-gradient(1200px 800px at 80% -20%, #1b2b45 0%, #0b0f14 55%); color:var(--ink)}
   h1{margin:0 0 8px; font-size:clamp(20px,2.6vw,32px)} p.sub{margin:0 0 24px; color:var(--muted)}
   .wrap{display:grid; gap:16px; grid-template-columns:380px 1fr} @media(max-width:980px){.wrap{grid-template-columns:1fr}}
@@ -26,7 +27,7 @@
 </head>
 <body>
   <h1>Koalitionsrechner – Proportionale Sitzverteilung</h1>
-  <p class="sub">Altes Layout, dicker Halbkreis, nichts ist abgeschnitten.</p>
+  <p class="sub">Altes Layout, dicker Halbkreis, nichts abgeschnitten.</p>
 
   <div class="wrap">
     <section class="card" id="inputsCard">
@@ -35,4 +36,20 @@
         <div><label>Sperrklausel (%)</label><input id="threshold" type="number" value="5" step="0.1"></div>
       </div>
       <div class="row">
-        <div><
+        <div><label>Wahlverfahren</label>
+          <select id="method">
+            <option value="sls" selected>Sainte-Laguë/Schepers</option>
+            <option value="dhondt">d’Hondt</option>
+            <option value="hare">Hare-Niemeyer</option>
+          </select>
+        </div>
+        <div><label>Ausnahmen (Komma, z. B. SSW)</label><input id="exceptions" placeholder="SSW"></div>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <button id="addRowBtn" type="button">+ Partei hinzufügen</button>
+        <div style="display:flex; gap:8px">
+          <button id="resetBtn" class="secondary" type="button">Zurücksetzen</button>
+          <button id="calcBtn" type="button">Neu berechnen</button>
+        </div>
+      </div>
+      <div class="muted" style="margin
